@@ -5,47 +5,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const passwordInput = document.getElementById('password-input');
 
     let currentIndex = polaroids.length - 1;
-    let isAnimating = false; // Renamed from isScrolling for clarity
-
-    // --- NEW: Variables to track touch movements ---
+    let isAnimating = false;
     let touchStartY = 0;
-    let touchEndY = 0;
-    const swipeThreshold = 50; // Minimum distance for a swipe to be registered
 
     function showNextPhoto() {
-        if (currentIndex >= 0) {
-            polaroids[currentIndex].classList.add('swiped');
-            currentIndex--;
-        }
+        // Guard clause: Do nothing if an animation is running or we're at the end.
+        if (isAnimating || currentIndex < 0) return;
+        
+        isAnimating = true;
+        polaroids[currentIndex].classList.add('swiped');
+        currentIndex--;
+        togglePasswordSection();
+        
+        // Reset the animation lock after the CSS transition finishes (600ms)
+        setTimeout(() => { isAnimating = false; }, 600);
     }
 
     function showPreviousPhoto() {
-        if (currentIndex < polaroids.length - 1) {
-            currentIndex++;
-            polaroids[currentIndex].classList.remove('swiped');
-        }
-    }
-
-    function handleSwipe() {
-        // This function will now be used by both mouse and touch
-        if (isAnimating) return;
-        isAnimating = true;
-
-        // Check if the user is swiping up (to see the next photo)
-        if (touchEndY < touchStartY - swipeThreshold) {
-            showNextPhoto();
-        } 
-        // Check if the user is swiping down (to see the previous photo)
-        else if (touchEndY > touchStartY + swipeThreshold) {
-            showPreviousPhoto();
-        }
-
-        togglePasswordSection();
+        // Guard clause: Do nothing if an animation is running or we're at the beginning.
+        if (isAnimating || currentIndex >= polaroids.length - 1) return;
         
-        // Reset the animation flag after the transition is done
-        setTimeout(() => { isAnimating = false; }, 800);
-    }
+        isAnimating = true;
+        currentIndex++;
+        polaroids[currentIndex].classList.remove('swiped');
+        togglePasswordSection();
 
+        // Reset the animation lock after the CSS transition finishes (600ms)
+        setTimeout(() => { isAnimating = false; }, 600);
+    }
+    
     function togglePasswordSection() {
         if (currentIndex < 0) {
             passwordSection.classList.remove('hidden');
@@ -54,37 +42,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- MOUSE WHEEL event listener (slightly modified) ---
+    // --- MOUSE WHEEL LISTENER ---
     window.addEventListener('wheel', (event) => {
-        if (isAnimating) return;
-        isAnimating = true;
-
         if (event.deltaY > 0) { // Scrolling down
             showNextPhoto();
         } else { // Scrolling up
             showPreviousPhoto();
         }
-        
-        togglePasswordSection();
-
-        setTimeout(() => { isAnimating = false; }, 800);
     });
 
-    // --- NEW: TOUCH event listeners ---
+    // --- TOUCH LISTENERS ---
     window.addEventListener('touchstart', (event) => {
         // Record the starting Y position of the touch
         touchStartY = event.changedTouches[0].screenY;
-    }, { passive: true });
-
-    window.addEventListener('touchend', (event) => {
-        // Record the ending Y position of the touch
-        touchEndY = event.changedTouches[0].screenY;
-        // Call the swipe handler to process the gesture
-        handleSwipe();
     });
 
+    window.addEventListener('touchend', (event) => {
+        const touchEndY = event.changedTouches[0].screenY;
+        const swipeDistance = touchStartY - touchEndY;
+        const swipeThreshold = 50; // Min pixels for a swipe
 
-    // --- PASSWORD logic (remains the same) ---
+        if (swipeDistance > swipeThreshold) {
+            // Swiped Up
+            showNextPhoto();
+        } else if (swipeDistance < -swipeThreshold) {
+            // Swiped Down
+            showPreviousPhoto();
+        }
+    });
+
+    // --- PASSWORD LOGIC ---
     passwordForm.addEventListener('submit', (event) => {
         event.preventDefault();
         const enteredPassword = passwordInput.value.trim().toLowerCase();
